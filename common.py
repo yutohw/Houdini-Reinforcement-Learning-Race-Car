@@ -128,7 +128,7 @@ max_steps    = 1440
 # ===========================
 # Multi-worker config
 # ===========================
-num_workers = 8
+num_workers = 5
 worker_ids  = [str(i) for i in range(1, num_workers + 1)]
 
 # ===========================
