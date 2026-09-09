@@ -29,7 +29,7 @@ Houdini 20.0 ships **Python 3.10**, so the virtual environment must be built fro
 
 **Keep the versions aligned.** The Houdini build, the Python version and the PyTorch wheel all have to match: build the venv from the `python3XX` interpreter inside your own Houdini install, and install a PyTorch wheel that supports that Python version. If you are on a different Houdini build, adjust every path in this README accordingly — a venv built from the wrong Python will import fine in a terminal but fail inside Houdini.
 
-**Note on the `.hip` files.** They were last saved in Houdini 21.0.631. version conversion might be required to work with the original setup with 20.0.724.
+**Note on the `.hip` files.** They were last saved in Houdini 21.0.631, so opening them in 20.0.724 shows a version warning. They open and run normally — the warning can be dismissed.
 
 ---
 
@@ -90,49 +90,7 @@ If the GUI works but `hython` doesn't, `houdini.env` wasn't picked up.
 
 ---
 
-## Part 2 — Inference
-
-Inference runs in the **Houdini GUI**, not headless. Nothing needs to be launched from a terminal.
-
-### 1. Unpack the files
-
-- Extract `houdini files.zip` and open `inference.hip`.
-- Extract `inference cache.zip` and place the five folders inside a `Recording` folder next to `inference.hip`, so the paths become `<folder containing inference.hip>/Recording/260906_Inference_Monza_01/`, and so on.
-
-The filecache nodes read from `$HIP/Recording/`, so this resolves automatically — with one exception: the Spa folder is named `260903_Inference_Spa_01` in the zip while the node points at `260906_Inference_Spa_01`. Rename the folder or repoint that node.
-
-### 2. Check the settings in `/obj/Inference_Script`
-
-Open the Python Script node `Inference_Script` at object level and edit the config block at the top:
-
-```python
-model_path = r"C:\path\to\model\Self_Driving_Agent_Example_01.pth"   # any .pth from model/
-track      = 3                                                       # 0-4
-max_steps  = 1440
-```
-
-`model_path` is the only value that must be changed — it is an absolute path. Point it at `Self_Driving_Agent_Example_01.pth` or any checkpoint in `model/`.
-
-### 3. Set the output location
-
-Inside `/obj/Inference_Environment`, set `Result_Recorder_01` to write somewhere sensible, for example `$HIP/Recording/My_Inference_Run_01`. Otherwise a new run overwrites an existing cache.
-
-### 4. Run
-
-Execute the `Inference_Script` node. Progress prints to the Python Shell.
-
-The script runs in two passes:
-
-1. **Rollout** — the policy runs deterministically and every action is stored in memory. Nothing is written to disk.
-2. **Replay** — the environment is reset and the stored actions are replayed step by step, with `Result_Recorder_01` firing on each step.
-
-The split is deliberate: calling the recorder inside the step loop forces the upstream solver to re-evaluate, which breaks simulation continuity. Separating recording from simulation avoids this.
-
-When it finishes, scrub the timeline to play back the recorded run.
-
----
-
-## Part 3 — Training
+## Part 2 — Training
 
 ### 1. Set the paths in `common.py`
 
@@ -210,6 +168,48 @@ Track selection follows a curriculum in `common.py` — track 0 only at first, w
 
 ---
 
+## Part 3 — Inference
+
+Inference runs in the **Houdini GUI**, not headless. Nothing needs to be launched from a terminal.
+
+### 1. Unpack the files
+
+- Extract `houdini files.zip` and open `inference.hip`.
+- Extract `inference cache.zip` and place the five folders inside a `Recording` folder next to `inference.hip`, so the paths become `<folder containing inference.hip>/Recording/260906_Inference_Monza_01/`, and so on.
+
+The filecache nodes read from `$HIP/Recording/`, so this resolves automatically — with one exception: the Spa folder is named `260903_Inference_Spa_01` in the zip while the node points at `260906_Inference_Spa_01`. Rename the folder or repoint that node.
+
+### 2. Check the settings in `/obj/Inference_Script`
+
+Open the Python Script node `Inference_Script` at object level and edit the config block at the top:
+
+```python
+model_path = r"C:\path\to\model\Self_Driving_Agent_Example_01.pth"   # any .pth from model/
+track      = 3                                                       # 0-4
+max_steps  = 1440
+```
+
+`model_path` is the only value that must be changed — it is an absolute path. Point it at `Self_Driving_Agent_Example_01.pth` or any checkpoint in `model/`.
+
+### 3. Set the output location
+
+Inside `/obj/Inference_Environment`, set `Result_Recorder_01` to write somewhere sensible, for example `$HIP/Recording/My_Inference_Run_01`. Otherwise a new run overwrites an existing cache.
+
+### 4. Run
+
+Execute the `Inference_Script` node. Progress prints to the Python Shell.
+
+The script runs in two passes:
+
+1. **Rollout** — the policy runs deterministically and every action is stored in memory. Nothing is written to disk.
+2. **Replay** — the environment is reset and the stored actions are replayed step by step, with `Result_Recorder_01` firing on each step.
+
+The split is deliberate: calling the recorder inside the step loop forces the upstream solver to re-evaluate, which breaks simulation continuity. Separating recording from simulation avoids this.
+
+When it finishes, scrub the timeline to play back the recorded run.
+
+---
+
 ## Troubleshooting
 
 **`import torch` works in the GUI but not in `hython`.** Check `houdini.env` uses forward slashes, `;` separators, and lives under `Documents\houdini20.0`.
@@ -221,9 +221,3 @@ Track selection follows a curriculum in `common.py` — track 0 only at first, w
 **`PermissionError` on files in `comms/`.** Two processes hit the same file. All writes go through the atomic helpers in `common.py`; check nothing else has the folder open.
 
 **Inference cache doesn't load.** Folder names must match the filecache paths exactly, including the Spa mismatch noted above.
-
----
-
-## Acknowledgements
-
-Thanks to Ivan and Ulysses for their input on the vehicle model and training setup, and to Fiana and Charlotte at SideFX.
